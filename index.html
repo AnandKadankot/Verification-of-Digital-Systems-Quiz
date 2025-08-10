@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Student Quiz</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  .hidden { display: none; }
+  .question { margin-bottom: 20px; }
+  .timer { font-weight: bold; color: red; }
+</style>
+</head>
+<body>
+
+<h2>MCQ Quiz</h2>
+
+<div id="startScreen">
+  <label>Full Name: <input type="text" id="studentName"></label><br><br>
+  <label>SRN: <input type="text" id="studentSRN"></label><br><br>
+  <button onclick="startQuiz()">Start Quiz</button>
+</div>
+
+<div id="quizScreen" class="hidden">
+  <div class="timer" id="timer"></div>
+  <div id="questionContainer"></div>
+  <button id="nextBtn" onclick="nextQuestion()">Next</button>
+</div>
+
+<div id="endScreen" class="hidden">
+  <h3>Quiz Finished</h3>
+  <p id="resultText"></p>
+</div>
+
+<script>
+// ====== CONFIG ======
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbycLpB-YuaoMhOYGDSmwRSkmqQh9VsEzl62mNm4BpZyzHuuH2I9WMlTu-EZ7xGCxWy4/exec";
+const TIME_PER_QUESTION = 10; // seconds
+
+// ====== QUESTIONS ======
+const questions = [
+  {
+    text: "What is the capital of Australia?",
+    options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+    correct: 2
+  },
+  {
+    text: "Which planet is known as the Red Planet?",
+    options: ["Earth", "Mars", "Venus", "Jupiter"],
+    correct: 1
+  },
+  {
+    text: "2 + 2 = ?",
+    options: ["3", "4", "5", "6"],
+    correct: 1
+  }
+];
+
+let currentIndex = 0;
+let score = 0;
+let elapsed = 0;
+let answers = [];
+let timerInterval;
+let timeLeft = TIME_PER_QUESTION;
+
+function startQuiz() {
+  const name = document.getElementById("studentName").value.trim();
+  const srn = document.getElementById("studentSRN").value.trim();
+  if (!name || !srn) {
+    alert("Please enter your Full Name and SRN.");
+    return;
+  }
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("quizScreen").classList.remove("hidden");
+  showQuestion();
+  startTimer();
+}
+
+function showQuestion() {
+  const q = questions[currentIndex];
+  const container = document.getElementById("questionContainer");
+  container.innerHTML = `<div class="question"><b>Q${currentIndex + 1}:</b> ${q.text}</div>`;
+  q.options.forEach((opt, i) => {
+    container.innerHTML += `
+      <label><input type="radio" name="answer" value="${i}"> ${opt}</label><br>
+    `;
+  });
+}
+
+function startTimer() {
+  timeLeft = TIME_PER_QUESTION;
+  document.getElementById("timer").innerText = `Time left: ${timeLeft}s`;
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    elapsed++;
+    document.getElementById("timer").innerText = `Time left: ${timeLeft}s`;
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      nextQuestion();
+    }
+  }, 1000);
+}
+
+function nextQuestion() {
+  clearInterval(timerInterval);
+  const selected = document.querySelector('input[name="answer"]:checked');
+  if (selected && parseInt(selected.value) === questions[currentIndex].correct) {
+    score++;
+  }
+  answers.push(selected ? parseInt(selected.value) : null);
+  currentIndex++;
+  if (currentIndex < questions.length) {
+    showQuestion();
+    startTimer();
+  } else {
+    endQuiz();
+  }
+}
+
+function endQuiz() {
+  document.getElementById("quizScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.remove("hidden");
+  document.getElementById("resultText").innerText = `You scored ${score} out of ${questions.length}`;
+  sendResults();
+}
+
+function sendResults() {
+  fetch(WEBAPP_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      studentName: document.getElementById("studentName").value.trim(),
+      studentSRN: document.getElementById("studentSRN").value.trim(),
+      score: score,
+      maxScore: questions.length,
+      elapsed: elapsed,
+      answers: answers
+    }),
+    headers: { "Content-Type": "application/json" }
+  })
+  .then(res => res.json())
+  .then(res => console.log("Submitted:", res))
+  .catch(err => console.error("Error submitting:", err));
+}
+</script>
+</body>
+</html>
